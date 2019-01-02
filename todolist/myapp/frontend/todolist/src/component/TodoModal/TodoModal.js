@@ -4,7 +4,6 @@ import {
     Modal,
     Button,
     FormGroup,
-    Checkbox,
     Radio,
     FormControl,
     ControlLabel,
@@ -14,60 +13,86 @@ import {
     Grid,
     Clearfix
 } from 'react-bootstrap';
-import axios from 'axios';
+import {inject} from 'mobx-react';
 
+@inject('todolist')
 class TodoModal extends Component {
 
     constructor(props, context) {
         super(props, context);
         this.state = {
-            submitting: false
+            isEdit: false,
+            data: null
         };
-    }
-
-    componentWillMount() {
-
     }
 
     handleSubmit = () => {
         this.setState({submitting: true});
-        axios.post('localhost:8089/api/addItem', {})
-            .then(function (response) {
-                console.log(response);
-                // this.setState({
-                //     users: response.data,
-                //     isLoaded: true
-                // });
-            })
-            .catch(function (error) {
-                console.log(error);
-                this.setState({
-                    isLoaded: false,
-                    error: error
-                })
-            })
+        if (this.state.isEdit) {
+            this.props.todolist.patchTodoItem({
+                id: this.state.data.id,
+                title: this.title.value,
+                content: this.content.value,
+                priority: this.priority.value,
+                deadline: this.deadline.value
+            }, () => {
+                this.clearModal();
+                this.props.onHide();
+            });
+        } else {
+            this.props.todolist.addNewTodo({
+                title: this.title.value,
+                content: this.content.value,
+                priority: this.priority.value,
+                deadline: this.deadline.value
+            }, () => {
+                this.clearModal();
+                this.props.onHide();
+            });
+        }
+    };
+
+    clearModal = () => {
+        this.title.value = null;
+        this.content.value = null;
+        this.priority.value = null;
+        this.deadline.value = null;
+    }
+
+    componentWillReceiveProps(nextProps) {
+        if (nextProps.modalData) {
+            let item = nextProps.modalData;
+            const _this = this;
+            _this.setState({
+                isEdit: true,
+                data: item
+            });
+        }
     }
 
     render() {
-
         function FieldGroup({id, label, help, ...props}) {
             return (
-                <Row>
-                    <FormGroup controlId={id}>
-                        <Clearfix>
-                            <Col xs={3} md={2}>
-                                <ControlLabel style={{textAlign: 'right', width: '100%'}}>{label}：</ControlLabel>
-                            </Col>
-                            <Col xs={8} md={8}>
-                                <FormControl {...props} />
-                                {help && <HelpBlock>{help}</HelpBlock>}
-                            </Col>
-                        </Clearfix>
-                    </FormGroup>
-                </Row>
+                <FormGroup controlId={id}>
+                    <Clearfix>
+                        <Col xs={3} md={2}>
+                            <ControlLabel style={{
+                                textAlign: 'right',
+                                width: '100%',
+                                paddingTop: "7px"
+                            }}>{label}：</ControlLabel>
+                        </Col>
+                        <Col xs={8} md={8}>
+                            <FormControl {...props}/>
+                            {help && <HelpBlock>{help}</HelpBlock>}
+                        </Col>
+                    </Clearfix>
+                </FormGroup>
             );
         }
 
+        const {data} = this.state;
+        console.log(data);
         const formInstance = (
             <Grid fluid={true}>
                 <form>
@@ -75,54 +100,49 @@ class TodoModal extends Component {
                         id="formControlsText"
                         type="text"
                         label="标题"
-                        placeholder="Enter text"
+                        placeholder="Enter Title"
+                        defaultValue={data && data.title || null}
+                        inputRef={(ref) => this.title = ref}
                     />
                     <FieldGroup
                         id="formControlsEmail"
-                        type="email"
+                        type="textarea"
                         label="内容"
-                        placeholder="Enter email"
+                        placeholder="Enter Content"
                         componentClass="textarea"
+                        defaultValue={data && data.content || null}
+                        inputRef={(ref) => this.content = ref}
                     />
-                    <Row>
-                        <FormGroup>
-                            <Clearfix>
-                                <Col xs={3} md={2}>
-                                    <ControlLabel style={{textAlign: 'right', width: '100%'}}>优先级：</ControlLabel>
-                                </Col>
-                                <Col xs={8} md={8}>
-                                    <Radio name="radioGroup" inline>
-                                        极高
-                                    </Radio>{' '}
-                                    <Radio name="radioGroup" inline>
-                                        高
-                                    </Radio>{' '}
-                                    <Radio name="radioGroup" inline>
-                                        中
-                                    </Radio>{' '}
-                                    <Radio name="radioGroup" inline>
-                                        低
-                                    </Radio>{' '}
-                                    <Radio name="radioGroup" inline>
-                                        极低
-                                    </Radio>
-                                </Col>
-                            </Clearfix>
-                        </FormGroup>
-                    </Row>
-
-                    <Row>
-                        <FormGroup>
-                            <Clearfix>
-                                <Col xs={3} md={2}>
-                                    <ControlLabel style={{textAlign: 'right', width: '100%'}}>Deadline：</ControlLabel>
-                                </Col>
-                                <Col xs={8} md={8}>
-
-                                </Col>
-                            </Clearfix>
-                        </FormGroup>
-                    </Row>
+                    <FormGroup controlId='formControlsPriority'>
+                        <Clearfix>
+                            <Col xs={3} md={2}>
+                                <ControlLabel style={{
+                                    textAlign: 'right',
+                                    width: '100%',
+                                    paddingTop: "7px"
+                                }}>优先级：</ControlLabel>
+                            </Col>
+                            <Col xs={8} md={8}>
+                                <FormControl componentClass="select" placeholder="选择优先级"
+                                             defaultValue={data && data.priority || null}
+                                             inputRef={(ref) => this.priority = ref}>
+                                    <option value={1}>极高</option>
+                                    <option value={2}>高</option>
+                                    <option value={3}>正常</option>
+                                    <option value={4}>低</option>
+                                    <option value={5}>极低</option>
+                                </FormControl>
+                            </Col>
+                        </Clearfix>
+                    </FormGroup>
+                    <FieldGroup
+                        id="time"
+                        type="date"
+                        label="Dead Line"
+                        placeholder=""
+                        defaultValue={data && data.deadline || null}
+                        inputRef={(ref) => this.deadline = ref}
+                    />
                 </form>
             </Grid>
 
@@ -138,7 +158,7 @@ class TodoModal extends Component {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button onClick={this.handleClose}>Close</Button>
-                    <Button type="submit" onClick={this.handleSubmit}>Submit</Button>
+                    <Button type="submit" bsStyle="primary" onClick={this.handleSubmit.bind(this)}>Submit</Button>
                 </Modal.Footer>
             </Modal>
         )
